@@ -1,0 +1,108 @@
+{
+  "theme": "Light",
+  "archetype": "1 (Organic & Earthy) with Swiss High-Contrast adjustments",
+  "design_context": "Mobile-first Web App (PWA) / Utility App for outdoor agriculture tracking. Designed for gloved usage in high-glare sunlight.",
+  "colors": {
+    "background": {
+      "default": "#FFFFFF",
+      "subtle": "#F5F5F4",
+      "utility": "#E7E5E4"
+    },
+    "text": {
+      "primary": "#1C1917",
+      "secondary": "#44403C",
+      "inverse": "#FFFFFF",
+      "alert": "#991B1B"
+    },
+    "primary": {
+      "main": "#047857",
+      "active": "#065F46",
+      "light": "#D1FAE5"
+    },
+    "alert": {
+      "destructive": "#DC2626",
+      "warning": "#D97706",
+      "low_stock": "#B45309"
+    },
+    "borders": {
+      "default": "#D6D3D1",
+      "focus": "#047857"
+    }
+  },
+  "typography": {
+    "fonts": {
+      "heading": "Manrope, sans-serif",
+      "body": "IBM Plex Sans, sans-serif"
+    },
+    "scales": {
+      "h1": "text-3xl font-extrabold tracking-tight",
+      "h2": "text-2xl font-bold tracking-tight",
+      "h3": "text-xl font-bold",
+      "body": "text-base font-medium leading-relaxed",
+      "small": "text-sm font-semibold tracking-wide",
+      "metrics": "text-4xl font-black tracking-tighter"
+    },
+    "rules": {
+      "legibility": "Use tabular nums for all quantities (L/ha, kg, ha) to ensure decimals align properly."
+    }
+  },
+  "spacing_and_layout": {
+    "touch_targets": "CRITICAL: All interactive elements (buttons, inputs, list items) MUST have a minimum height of 56px (h-14). No exceptions.",
+    "padding": "Generous internal padding to prevent mis-taps. Screen padding default: p-4 or p-6.",
+    "grid": "grid-cols-1 for most forms. 2-column grids only for paired metrics (e.g., Area vs. Dose).",
+    "surface_strategy": "Solid flat cards. NO glassmorphism, NO heavy shadows. Use 1px sharp borders (border-stone-300) with subtle ambient shadow (shadow-sm) for depth against pure white backgrounds."
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-emerald-700 text-white min-h-[56px] rounded-xl font-bold text-lg active:bg-emerald-800 active:scale-[0.98] transition-all",
+      "secondary": "bg-stone-100 text-stone-900 border-2 border-stone-200 min-h-[56px] rounded-xl font-bold text-lg active:bg-stone-200",
+      "destructive": "bg-red-600 text-white min-h-[56px] rounded-xl font-bold text-lg active:bg-red-700"
+    },
+    "inputs": {
+      "text_and_number": "min-h-[56px] border-2 border-stone-300 rounded-xl px-4 text-lg font-bold bg-white focus:border-emerald-700 focus:ring-2 focus:ring-emerald-200",
+      "select": "min-h-[56px] border-2 border-stone-300 rounded-xl px-4 text-lg font-bold bg-white"
+    },
+    "cards": {
+      "dashboard_metric": "p-5 bg-white border border-stone-200 rounded-2xl shadow-sm flex flex-col gap-2",
+      "list_item": "p-4 bg-white border-b border-stone-200 flex justify-between items-center active:bg-stone-50 min-h-[72px]"
+    },
+    "navigation": {
+      "bottom_tab_bar": "fixed bottom-0 w-full h-20 bg-white border-t border-stone-200 flex justify-around items-center pb-2 z-50",
+      "tab_item": "flex flex-col items-center justify-center w-full h-full gap-1 text-stone-500 active:text-emerald-700 data-[active=true]:text-emerald-700 font-semibold text-xs"
+    }
+  },
+  "icons": {
+    "library": "lucide-react",
+    "size": "Minimum 28px (w-7 h-7) for main actions, 24px (w-6 h-6) for list items. Stroke width 2.5 for better visibility in sunlight.",
+    "usage": "Use thick, clear icons. No delicate thin lines."
+  },
+  "images": {
+    "hero_backgrounds": [
+      {
+        "url": "https://images.unsplash.com/photo-1596463237665-dca3d78e053d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHwxfHx3aGVhdCUyMGZpZWxkJTIwY2xvc2UlMjB1cHxlbnwwfHx8fDE3Nzc4MTI2MzR8MA&ixlib=rb-4.1.0&q=85",
+        "category": "splash_screen",
+        "description": "Close up of brown wheat field for app loading/splash screen"
+      }
+    ],
+    "empty_states": [
+      {
+        "url": "https://images.unsplash.com/photo-1595359669901-5bf4f2616ccc?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MjJ8MHwxfHNlYXJjaHwxfHxmYXJtZXIlMjB0cmFjdG9yJTIwZmllbGR8ZW58MHx8fHwxNzc3ODEyNjM0fDA&ixlib=rb-4.1.0&q=85",
+        "category": "empty_dashboard",
+        "description": "Green tractor in field, used when no treatments are recorded yet"
+      }
+    ]
+  },
+  "accessibility": {
+    "contrast": "Must exceed WCAG AA 4.5:1. Use deep greens and blacks against pure white.",
+    "testing": "All interactive elements MUST include data-testid (e.g., data-testid='new-treatment-button', data-testid='dashboard-tab')."
+  },
+  "instructions_to_main_agent": [
+    "Build this as an Android-first Mobile Web App (PWA) using React + Tailwind + Shadcn.",
+    "CRITICAL: The UI will be used outdoors by French farmers, potentially with gloves. Do NOT use standard small web inputs. Enforce min-h-[56px] for all buttons, inputs, and list items.",
+    "Do NOT use glassmorphism or low-contrast text. Everything must be highly visible in direct sunlight.",
+    "All text MUST be in French.",
+    "Implement bottom tab navigation fixed to the bottom of the viewport.",
+    "Use standard HTML/Tailwind for layout wrappers, customize Shadcn inputs/selects heavily to meet the 56px height requirement.",
+    "Ensure 'data-testid' is attached to every button, form field, and interactive list item."
+  ]
+}
