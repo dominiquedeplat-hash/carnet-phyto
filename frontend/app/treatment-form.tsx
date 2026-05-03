@@ -69,6 +69,9 @@ export default function TreatmentForm() {
   const [notes, setNotes] = useState('');
 
   const [selectedProducts, setSelectedProducts] = useState<TreatmentProduct[]>([]);
+  // Raw text inputs for doses — kept separately so the user can type "0," without
+  // the field being reset (parseFrenchNumber("0,") === 0 which wiped the input).
+  const [doseTexts, setDoseTexts] = useState<string[]>([]);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [fieldPickerVisible, setFieldPickerVisible] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -95,6 +98,11 @@ export default function TreatmentForm() {
         }
         setNotes(t.notes ?? '');
         setSelectedProducts(t.products);
+        setDoseTexts(
+          t.products.map((p) =>
+            p.dosePerHa === 0 ? '' : String(p.dosePerHa).replace('.', ',')
+          )
+        );
       }
     }
     setLoaded(true);
@@ -129,19 +137,30 @@ export default function TreatmentForm() {
         dosePerHa: 0,
       },
     ]);
+    setDoseTexts((prev) => [...prev, '']);
     setPickerVisible(false);
   };
 
-  const updateDose = (index: number, dose: string) => {
+  const updateDose = (index: number, doseText: string) => {
+    // Keep only digits, comma and dot. Normalize multiple separators.
+    let cleaned = doseText.replace(/[^0-9.,]/g, '').replace(/\./g, ',');
+    const firstComma = cleaned.indexOf(',');
+    if (firstComma !== -1) {
+      cleaned =
+        cleaned.slice(0, firstComma + 1) +
+        cleaned.slice(firstComma + 1).replace(/,/g, '');
+    }
+    setDoseTexts((prev) => prev.map((t, i) => (i === index ? cleaned : t)));
     setSelectedProducts((prev) =>
       prev.map((sp, i) =>
-        i === index ? { ...sp, dosePerHa: parseFrenchNumber(dose) } : sp
+        i === index ? { ...sp, dosePerHa: parseFrenchNumber(cleaned) } : sp
       )
     );
   };
 
   const removeProduct = (index: number) => {
     setSelectedProducts((prev) => prev.filter((_, i) => i !== index));
+    setDoseTexts((prev) => prev.filter((_, i) => i !== index));
   };
 
   const submit = async () => {
@@ -447,12 +466,8 @@ export default function TreatmentForm() {
                     <Input
                       testID={`dose-${sp.productId}`}
                       label={`Dose (${sp.unit}/ha)`}
-                      placeholder="Ex : 1,5"
-                      value={
-                        sp.dosePerHa === 0
-                          ? ''
-                          : String(sp.dosePerHa).replace('.', ',')
-                      }
+                      placeholder="Ex : 0,5"
+                      value={doseTexts[idx] ?? ''}
                       onChangeText={(v) => updateDose(idx, v)}
                       keyboardType="decimal-pad"
                       suffix={`${sp.unit}/ha`}
