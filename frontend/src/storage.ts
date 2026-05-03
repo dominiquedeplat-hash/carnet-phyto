@@ -167,3 +167,40 @@ export async function deleteTreatment(id: string): Promise<void> {
 export async function clearAll(): Promise<void> {
   await AsyncStorage.multiRemove([KEYS.fields, KEYS.products, KEYS.treatments]);
 }
+
+// ---- Bulk import ----
+export async function addFieldsBulk(
+  items: Omit<Field, 'id' | 'createdAt'>[]
+): Promise<number> {
+  if (items.length === 0) return 0;
+  const existing = await getFields();
+  const nowIso = new Date().toISOString();
+  const toAdd: Field[] = items.map((it) => ({
+    id: uid(),
+    name: it.name,
+    area: it.area,
+    crop: it.crop,
+    createdAt: nowIso,
+  }));
+  await writeList(KEYS.fields, [...existing, ...toAdd]);
+  return toAdd.length;
+}
+
+export async function addProductsBulk(
+  items: Omit<Product, 'id' | 'createdAt'>[]
+): Promise<number> {
+  if (items.length === 0) return 0;
+  const existing = await getProducts();
+  const nowIso = new Date().toISOString();
+  const toAdd: Product[] = items.map((it) => ({
+    id: uid(),
+    name: it.name,
+    category: it.category,
+    unit: it.unit,
+    stock: it.stock,
+    lowStockThreshold: it.lowStockThreshold,
+    createdAt: nowIso,
+  }));
+  await writeList(KEYS.products, [...existing, ...toAdd]);
+  return toAdd.length;
+}

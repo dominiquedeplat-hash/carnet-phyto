@@ -14,15 +14,52 @@ import { useFocusEffect } from 'expo-router';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as DocumentPicker from 'expo-document-picker';
 import {
   getFields,
   getProducts,
   getTreatments,
   clearAll,
+  addFieldsBulk,
+  addProductsBulk,
 } from '../../src/storage';
-import { Field, Product, Treatment } from '../../src/types';
+import { Field, Product, ProductCategory, Treatment, Unit } from '../../src/types';
 import { colors, radius, sizes, spacing, typography } from '../../src/theme';
 import { formatDate, formatDateTime, formatNumber } from '../../src/format';
+import { parseCSV, normalizeHeader } from '../../src/csv';
+
+const parseNum = (s: string): number => {
+  if (!s) return NaN;
+  const n = parseFloat(s.replace(/\s/g, '').replace(',', '.'));
+  return n;
+};
+
+const CATEGORY_ALIASES: Record<string, ProductCategory> = {
+  herbicide: 'Herbicide',
+  herbicides: 'Herbicide',
+  desherbant: 'Herbicide',
+  fongicide: 'Fongicide',
+  fongicides: 'Fongicide',
+  fungicide: 'Fongicide',
+  insecticide: 'Insecticide',
+  insecticides: 'Insecticide',
+  autre: 'Autre',
+  other: 'Autre',
+  divers: 'Autre',
+};
+
+const UNIT_ALIASES: Record<string, Unit> = {
+  l: 'L',
+  litre: 'L',
+  litres: 'L',
+  liter: 'L',
+  liters: 'L',
+  kg: 'kg',
+  kilo: 'kg',
+  kilos: 'kg',
+  kilogramme: 'kg',
+  kilogrammes: 'kg',
+};
 
 export default function ExportScreen() {
   const [treatments, setTreatments] = useState<Treatment[]>([]);
@@ -261,6 +298,209 @@ export default function ExportScreen() {
     }
   };
 
+  // -------- Import CSV --------
+  const findHeaderIndex = (headers: string[], candidates: string[]): number => {
+    const norms = headers.map(normalizeHeader);
+    for (const c of candidates) {
+      const idx = norms.indexOf(normalizeHeader(c));
+      if (idx !== -1) return idx;
+    }
+    return -1;
+  };
+
+  const importFieldsCSV = async () => {
+    try {
+      const res = await DocumentPicker.getDocumentAsync({
+        type: ['text/csv', 'text/comma-separated-values', 'application/vnd.ms-excel', '*/*'],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (res.canceled || !res.assets?.[0]) return;
+      const uri = res.assets[0].uri;
+      const content = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+      const rows = parseCSV(content);
+      if (rows.length < 2) {
+        Alert.alert('Fichier vide', 'Le CSV doit contenir un en-tête et au moins une ligne.');
+        return;
+      }
+      const headers = rows[0];
+      const iName = findHeaderIndex(headers, ['nom', 'name', 'parcelle', 'champ']);
+      const iArea = findHeaderIndex(headers, ['surface', 'surfaceha', 'area', 'hectares', 'ha']);
+      const iCrop = findHeaderIndex(headers, ['culture', 'crop']);
+      if (iName === -1 || iArea === -1 || iCrop === -1) {
+        Alert.alert(
+          'En-têtes manquants',
+          'Le fichier doit contenir les colonnes : Nom, Surface (ha), Culture.'
+        );
+        return;
+      }
+      const items: Omit<Field, 'id' | 'createdAt'>[] = [];
+      const errors: string[] = [];
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        if (!row.some((c) => c.trim().length > 0)) continue;
+        const name = (row[iName] ?? '').trim();
+        const area = parseNum((row[iArea] ?? '').trim());
+        const crop = (row[iCrop] ?? '').trim();
+        if (!name || !crop || !isFinite(area) || area <= 0) {
+          errors.push(`Ligne ${r + 1}`);
+          continue;
+        }
+        items.push({ name, area, crop });
+      }
+      if (items.length === 0) {
+        Alert.alert('Aucune ligne valide', 'Vérifiez le contenu du fichier.');
+        return;
+      }
+      Alert.alert(
+        'Importer ?',
+        `${items.length} champ(s) seront ajoutés${
+          errors.length > 0 ? ` (${errors.length} ligne(s) ignorée(s))` : ''
+        }.`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Importer',
+            onPress: async () => {
+              const n = await addFieldsBulk(items);
+              await load();
+              Alert.alert('Import terminé', `${n} champ(s) ajouté(s).`);
+            },
+          },
+        ]
+      );
+    } catch (e: any) {
+      Alert.alert('Erreur', e?.message ?? 'Import CSV impossible');
+    }
+  };
+
+  const importProductsCSV = async () => {
+    try {
+      const res = await DocumentPicker.getDocumentAsync({
+        type: ['text/csv', 'text/comma-separated-values', 'application/vnd.ms-excel', '*/*'],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (res.canceled || !res.assets?.[0]) return;
+      const uri = res.assets[0].uri;
+      const content = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+      const rows = parseCSV(content);
+      if (rows.length < 2) {
+        Alert.alert('Fichier vide', 'Le CSV doit contenir un en-tête et au moins une ligne.');
+        return;
+      }
+      const headers = rows[0];
+      const iName = findHeaderIndex(headers, ['nom', 'name', 'produit']);
+      const iCat = findHeaderIndex(headers, ['categorie', 'category', 'type']);
+      const iUnit = findHeaderIndex(headers, ['unite', 'unit', 'u']);
+      const iStock = findHeaderIndex(headers, ['stock', 'quantite', 'quantity']);
+      const iThresh = findHeaderIndex(headers, [
+        'seuil',
+        'seuilalerte',
+        'threshold',
+        'alerte',
+        'mini',
+      ]);
+      if (iName === -1 || iCat === -1 || iUnit === -1 || iStock === -1) {
+        Alert.alert(
+          'En-têtes manquants',
+          'Colonnes requises : Nom, Catégorie, Unité, Stock. (Seuil alerte optionnel)'
+        );
+        return;
+      }
+      const items: Omit<Product, 'id' | 'createdAt'>[] = [];
+      const errors: string[] = [];
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        if (!row.some((c) => c.trim().length > 0)) continue;
+        const name = (row[iName] ?? '').trim();
+        const rawCat = normalizeHeader((row[iCat] ?? '').trim());
+        const rawUnit = normalizeHeader((row[iUnit] ?? '').trim());
+        const stock = parseNum((row[iStock] ?? '').trim());
+        const threshold =
+          iThresh === -1 ? 0 : parseNum((row[iThresh] ?? '0').trim());
+        const category = CATEGORY_ALIASES[rawCat];
+        const unit = UNIT_ALIASES[rawUnit];
+        if (
+          !name ||
+          !category ||
+          !unit ||
+          !isFinite(stock) ||
+          stock < 0 ||
+          (iThresh !== -1 && (!isFinite(threshold) || threshold < 0))
+        ) {
+          errors.push(`Ligne ${r + 1}`);
+          continue;
+        }
+        items.push({
+          name,
+          category,
+          unit,
+          stock,
+          lowStockThreshold: isFinite(threshold) ? threshold : 0,
+        });
+      }
+      if (items.length === 0) {
+        Alert.alert(
+          'Aucune ligne valide',
+          'Catégories acceptées : Herbicide, Fongicide, Insecticide, Autre. Unités : L ou kg.'
+        );
+        return;
+      }
+      Alert.alert(
+        'Importer ?',
+        `${items.length} produit(s) seront ajoutés${
+          errors.length > 0 ? ` (${errors.length} ligne(s) ignorée(s))` : ''
+        }.`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Importer',
+            onPress: async () => {
+              const n = await addProductsBulk(items);
+              await load();
+              Alert.alert('Import terminé', `${n} produit(s) ajouté(s).`);
+            },
+          },
+        ]
+      );
+    } catch (e: any) {
+      Alert.alert('Erreur', e?.message ?? 'Import CSV impossible');
+    }
+  };
+
+  const downloadTemplate = async (kind: 'fields' | 'products') => {
+    setBusy(true);
+    try {
+      const content =
+        kind === 'fields'
+          ? '\uFEFFNom;Surface (ha);Culture\nGrande pièce;8,5;Blé tendre\nPré du moulin;3,2;Maïs\n'
+          : '\uFEFFNom;Catégorie;Unité;Stock;Seuil alerte\nRoundup Flex;Herbicide;L;20;5\nOpus;Fongicide;L;10;2\nKarate Zeon;Insecticide;L;5;1\nSulfate de cuivre;Fongicide;kg;25;5\n';
+      const filename =
+        kind === 'fields' ? 'modele-champs.csv' : 'modele-produits.csv';
+      const uri = `${FileSystem.cacheDirectory}${filename}`;
+      await FileSystem.writeAsStringAsync(uri, content, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'text/csv',
+          dialogTitle: 'Modèle CSV',
+        });
+      } else {
+        Alert.alert('Modèle généré', uri);
+      }
+    } catch (e: any) {
+      Alert.alert('Erreur', e?.message ?? 'Impossible de générer le modèle');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const confirmReset = () => {
     Alert.alert(
       'Tout supprimer ?',
@@ -353,6 +593,78 @@ export default function ExportScreen() {
               connexion internet n'est requise pour utiliser l'application.
             </Text>
           </View>
+        </View>
+
+        {/* Import section */}
+        <Text style={styles.sectionHeading}>Importer depuis un fichier CSV</Text>
+        <Text style={styles.sectionSub}>
+          Importez vos champs ou produits en masse depuis un fichier CSV (Excel, LibreOffice…).
+          Téléchargez d'abord un modèle pour connaître le format attendu.
+        </Text>
+
+        <TouchableOpacity
+          testID="import-fields-btn"
+          activeOpacity={0.85}
+          style={[styles.bigBtn, styles.secondaryBtn]}
+          onPress={importFieldsCSV}
+          disabled={busy}
+        >
+          <View style={[styles.btnIcon, { backgroundColor: colors.primaryLight }]}>
+            <Ionicons name="leaf" size={26} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.btnTitle, { color: colors.textPrimary }]}>
+              Importer des champs
+            </Text>
+            <Text style={[styles.btnSub, { color: colors.textSecondary }]}>
+              Fichier CSV : Nom, Surface (ha), Culture
+            </Text>
+          </View>
+          <Ionicons name="download-outline" size={22} color={colors.textPrimary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          testID="import-products-btn"
+          activeOpacity={0.85}
+          style={[styles.bigBtn, styles.secondaryBtn]}
+          onPress={importProductsCSV}
+          disabled={busy}
+        >
+          <View style={[styles.btnIcon, { backgroundColor: colors.primaryLight }]}>
+            <Ionicons name="flask" size={26} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.btnTitle, { color: colors.textPrimary }]}>
+              Importer des produits
+            </Text>
+            <Text style={[styles.btnSub, { color: colors.textSecondary }]}>
+              CSV : Nom, Catégorie, Unité, Stock, Seuil
+            </Text>
+          </View>
+          <Ionicons name="download-outline" size={22} color={colors.textPrimary} />
+        </TouchableOpacity>
+
+        <View style={styles.templateRow}>
+          <TouchableOpacity
+            testID="template-fields-btn"
+            activeOpacity={0.85}
+            style={styles.templateBtn}
+            onPress={() => downloadTemplate('fields')}
+            disabled={busy}
+          >
+            <Ionicons name="document-outline" size={18} color={colors.primary} />
+            <Text style={styles.templateText}>Modèle champs</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            testID="template-products-btn"
+            activeOpacity={0.85}
+            style={styles.templateBtn}
+            onPress={() => downloadTemplate('products')}
+            disabled={busy}
+          >
+            <Ionicons name="document-outline" size={18} color={colors.primary} />
+            <Text style={styles.templateText}>Modèle produits</Text>
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
@@ -471,5 +783,38 @@ const styles = StyleSheet.create({
   dangerText: {
     ...typography.bodyBold,
     color: colors.destructive,
+  },
+  sectionHeading: {
+    ...typography.h2,
+    color: colors.textPrimary,
+    marginTop: spacing.xl,
+    marginBottom: 4,
+  },
+  sectionSub: {
+    ...typography.small,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+    lineHeight: 18,
+  },
+  templateRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  templateBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 48,
+    paddingHorizontal: 12,
+    borderRadius: radius.md,
+    backgroundColor: colors.primaryLight,
+  },
+  templateText: {
+    ...typography.small,
+    color: colors.primary,
+    fontWeight: '700',
   },
 });
