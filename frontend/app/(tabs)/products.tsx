@@ -47,6 +47,7 @@ export default function ProductsScreen() {
   const [unit, setUnit] = useState<Unit>('L');
   const [stock, setStock] = useState('');
   const [threshold, setThreshold] = useState('');
+  const [amm, setAmm] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
@@ -66,6 +67,7 @@ export default function ProductsScreen() {
     setUnit('L');
     setStock('');
     setThreshold('');
+    setAmm('');
     setErrors({});
     setShowForm(true);
   };
@@ -77,6 +79,7 @@ export default function ProductsScreen() {
     setUnit(p.unit);
     setStock(String(p.stock).replace('.', ','));
     setThreshold(String(p.lowStockThreshold).replace('.', ','));
+    setAmm(p.amm ?? '');
     setErrors({});
     setShowForm(true);
   };
@@ -99,9 +102,18 @@ export default function ProductsScreen() {
       unit,
       stock: s,
       lowStockThreshold: th,
+      amm: amm.trim() || undefined,
     });
     setShowForm(false);
     await load();
+  };
+
+  const openEphy = (ammNum: string) => {
+    const cleaned = ammNum.replace(/\s/g, '');
+    const url = `https://ephy.anses.fr/ppp/recherche?phrase=${encodeURIComponent(cleaned)}`;
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Erreur', 'Impossible d\'ouvrir le site e-Phy.');
+    });
   };
 
   const confirmDelete = (p: Product) => {
@@ -196,6 +208,22 @@ export default function ProductsScreen() {
                     </View>
                   )}
                 </View>
+                {item.amm ? (
+                  <TouchableOpacity
+                    testID={`product-amm-${item.id}`}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      openEphy(item.amm!);
+                    }}
+                    style={styles.ammRow}
+                    hitSlop={6}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.ammLabel}>AMM </Text>
+                    <Text style={styles.ammLink}>{item.amm}</Text>
+                    <Ionicons name="open-outline" size={13} color={colors.primary} />
+                  </TouchableOpacity>
+                ) : null}
               </View>
               <View style={styles.cardRight}>
                 <Text style={[styles.cardStock, low && { color: colors.lowStock }]}>
@@ -244,6 +272,14 @@ export default function ProductsScreen() {
                 onChangeText={setName}
                 error={errors.name}
                 autoFocus
+              />
+              <Input
+                testID="product-amm-input"
+                label="N° AMM (optionnel)"
+                placeholder="Ex : 2090024"
+                value={amm}
+                onChangeText={setAmm}
+                keyboardType="number-pad"
               />
               <SegmentedPicker
                 label="Catégorie"
@@ -383,6 +419,26 @@ const styles = StyleSheet.create({
     ...typography.tiny,
     color: colors.lowStock,
     fontSize: 11,
+  },
+  ammRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    paddingVertical: 2,
+    alignSelf: 'flex-start',
+  },
+  ammLabel: {
+    ...typography.tiny,
+    color: colors.textMuted,
+    fontSize: 11,
+  },
+  ammLink: {
+    ...typography.tiny,
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+    marginRight: 4,
   },
   cardRight: { alignItems: 'flex-end' },
   cardStock: {

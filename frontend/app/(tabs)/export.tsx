@@ -405,10 +405,11 @@ export default function ExportScreen() {
         'alerte',
         'mini',
       ]);
+      const iAmm = findHeaderIndex(headers, ['amm', 'numeroamm', 'nodamm', 'ammnumero']);
       if (iName === -1 || iCat === -1 || iUnit === -1 || iStock === -1) {
         Alert.alert(
           'En-têtes manquants',
-          'Colonnes requises : Nom, Catégorie, Unité, Stock. (Seuil alerte optionnel)'
+          'Colonnes requises : Nom, Catégorie, Unité, Stock. (Seuil alerte et AMM optionnels)'
         );
         return;
       }
@@ -442,6 +443,7 @@ export default function ExportScreen() {
           unit,
           stock,
           lowStockThreshold: isFinite(threshold) ? threshold : 0,
+          amm: iAmm !== -1 ? (row[iAmm] ?? '').trim() || undefined : undefined,
         });
       }
       if (items.length === 0) {
@@ -479,7 +481,7 @@ export default function ExportScreen() {
       const content =
         kind === 'fields'
           ? '\uFEFFNom;Surface (ha);Culture\nGrande pièce;8,5;Blé tendre\nPré du moulin;3,2;Maïs\n'
-          : '\uFEFFNom;Catégorie;Unité;Stock;Seuil alerte\nRoundup Flex;Herbicide;L;20;5\nOpus;Fongicide;L;10;2\nKarate Zeon;Insecticide;L;5;1\nSulfate de cuivre;Fongicide;kg;25;5\n';
+          : '\uFEFFNom;Catégorie;Unité;Stock;Seuil alerte;AMM\nRoundup Flex;Herbicide;L;20;5;2090024\nOpus;Fongicide;L;10;2;9700296\nKarate Zeon;Insecticide;L;5;1;9900087\nSulfate de cuivre;Fongicide;kg;25;5;\n';
       const filename =
         kind === 'fields' ? 'modele-champs.csv' : 'modele-produits.csv';
       const uri = `${FileSystem.cacheDirectory}${filename}`;
@@ -638,7 +640,7 @@ export default function ExportScreen() {
               Importer des produits
             </Text>
             <Text style={[styles.btnSub, { color: colors.textSecondary }]}>
-              CSV : Nom, Catégorie, Unité, Stock, Seuil
+              CSV : Nom, Catégorie, Unité, Stock, Seuil, AMM
             </Text>
           </View>
           <Ionicons name="download-outline" size={22} color={colors.textPrimary} />

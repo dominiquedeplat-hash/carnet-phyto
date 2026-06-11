@@ -79,6 +79,7 @@ export async function saveProduct(data: Omit<Product, 'id' | 'createdAt'> & { id
     unit: data.unit,
     stock: data.stock,
     lowStockThreshold: data.lowStockThreshold,
+    amm: data.amm,
     createdAt: new Date().toISOString(),
   };
   products.push(newProduct);
@@ -199,6 +200,7 @@ export async function addProductsBulk(
     unit: it.unit,
     stock: it.stock,
     lowStockThreshold: it.lowStockThreshold,
+    amm: it.amm,
     createdAt: nowIso,
   }));
   await writeList(KEYS.products, [...existing, ...toAdd]);

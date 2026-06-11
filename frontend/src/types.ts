@@ -14,9 +14,10 @@ export interface Product {
   id: string;
   name: string;
   category: ProductCategory;
-  unit: Unit; // L or kg
+  unit: Unit;
   stock: number;
   lowStockThreshold: number;
+  amm?: string;
   createdAt: string;
 }
 
