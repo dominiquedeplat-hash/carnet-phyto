@@ -1,15 +1,16 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  SectionList,
   TouchableOpacity,
   Modal,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -134,6 +135,29 @@ export default function ProductsScreen() {
     );
   };
 
+  // Build grouped sections: ordered categories, then alphabetical names inside
+  const CATEGORY_ORDER: ProductCategory[] = ['Herbicide', 'Fongicide', 'Insecticide', 'Autre'];
+  const sections = useMemo(() => {
+    const groups: Record<ProductCategory, Product[]> = {
+      Herbicide: [],
+      Fongicide: [],
+      Insecticide: [],
+      Autre: [],
+    };
+    for (const p of products) {
+      groups[p.category].push(p);
+    }
+    return CATEGORY_ORDER
+      .map((cat) => ({
+        title: cat,
+        color: categoryColor(cat),
+        data: groups[cat].sort((a, b) =>
+          a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+        ),
+      }))
+      .filter((s) => s.data.length > 0);
+  }, [products]);
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
@@ -148,10 +172,11 @@ export default function ProductsScreen() {
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={products}
+      <SectionList
+        sections={sections}
         keyExtractor={(i) => i.id}
         contentContainerStyle={styles.list}
+        stickySectionHeadersEnabled={false}
         ListEmptyComponent={
           <EmptyState
             icon="flask-outline"
@@ -159,6 +184,23 @@ export default function ProductsScreen() {
             subtitle="Ajoutez vos produits phytosanitaires pour gérer votre stock."
           />
         }
+        renderSectionHeader={({ section }) => (
+          <View
+            testID={`section-${section.title}`}
+            style={[
+              styles.sectionHeader,
+              { backgroundColor: section.color + '15', borderColor: section.color + '40' },
+            ]}
+          >
+            <View style={[styles.sectionDot, { backgroundColor: section.color }]} />
+            <Text style={[styles.sectionTitle, { color: section.color }]}>
+              {section.title}
+            </Text>
+            <Text style={styles.sectionCount}>
+              {section.data.length} produit{section.data.length > 1 ? 's' : ''}
+            </Text>
+          </View>
+        )}
         renderItem={({ item }) => {
           const low = item.stock <= item.lowStockThreshold;
           return (
@@ -369,6 +411,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   list: { padding: spacing.md, paddingTop: 0, gap: 10 },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  sectionDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 10,
+  },
+  sectionTitle: {
+    ...typography.h3,
+    fontSize: 15,
+    flex: 1,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  sectionCount: {
+    ...typography.tiny,
+    color: colors.textMuted,
+    fontSize: 11,
+  },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
