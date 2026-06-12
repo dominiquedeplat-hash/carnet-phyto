@@ -111,9 +111,13 @@ export default function ProductsScreen() {
 
   const openEphy = (ammNum: string) => {
     const cleaned = ammNum.replace(/\s/g, '');
-    const url = `https://ephy.anses.fr/ppp/recherche?phrase=${encodeURIComponent(cleaned)}`;
+    // E-Phy n'expose pas d'URL de recherche directe par numéro AMM.
+    // On passe par une recherche Google ciblée sur le domaine ephy.anses.fr :
+    // le 1er résultat est presque toujours la fiche officielle du produit.
+    const query = `site:ephy.anses.fr "${cleaned}"`;
+    const url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
     Linking.openURL(url).catch(() => {
-      Alert.alert('Erreur', 'Impossible d\'ouvrir le site e-Phy.');
+      Alert.alert('Erreur', "Impossible d'ouvrir la recherche e-Phy.");
     });
   };
 
