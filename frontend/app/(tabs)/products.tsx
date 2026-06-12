@@ -111,11 +111,12 @@ export default function ProductsScreen() {
 
   const openEphy = (ammNum: string) => {
     const cleaned = ammNum.replace(/\s/g, '');
-    // E-Phy n'expose pas d'URL de recherche directe par numéro AMM.
-    // On passe par une recherche Google ciblée sur le domaine ephy.anses.fr :
-    // le 1er résultat est presque toujours la fiche officielle du produit.
-    const query = `site:ephy.anses.fr "${cleaned}"`;
-    const url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+    // E-Phy n'a pas d'URL de recherche directe par numéro AMM (formulaire JS).
+    // On passe par DuckDuckGo avec un filtre `site:ephy.anses.fr` : le 1er
+    // résultat est la fiche officielle du produit. DuckDuckGo est utilisé
+    // plutôt que Google car il ne déclenche pas de CAPTCHA et est plus rapide.
+    const query = `site:ephy.anses.fr ${cleaned}`;
+    const url = `https://duckduckgo.com/?q=${encodeURIComponent(query)}`;
     Linking.openURL(url).catch(() => {
       Alert.alert('Erreur', "Impossible d'ouvrir la recherche e-Phy.");
     });
