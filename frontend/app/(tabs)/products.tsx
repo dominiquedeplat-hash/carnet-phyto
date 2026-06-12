@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
 import {
   deleteProduct,
   getProducts,
@@ -111,15 +112,55 @@ export default function ProductsScreen() {
 
   const openEphy = (ammNum: string) => {
     const cleaned = ammNum.replace(/\s/g, '');
-    // E-Phy n'a pas d'URL de recherche directe par numéro AMM (formulaire JS).
-    // On passe par DuckDuckGo avec un filtre `site:ephy.anses.fr` : le 1er
-    // résultat est la fiche officielle du produit. DuckDuckGo est utilisé
-    // plutôt que Google car il ne déclenche pas de CAPTCHA et est plus rapide.
-    const query = `site:ephy.anses.fr ${cleaned}`;
-    const url = `https://duckduckgo.com/?q=${encodeURIComponent(query)}`;
-    Linking.openURL(url).catch(() => {
-      Alert.alert('Erreur', "Impossible d'ouvrir la recherche e-Phy.");
-    });
+    Alert.alert(
+      `AMM n° ${cleaned}`,
+      'Que souhaitez-vous faire ?',
+      [
+        {
+          text: 'Rechercher sur e-Phy',
+          onPress: async () => {
+            // DuckDuckGo with site filter — first result = e-Phy product page
+            const url = `https://duckduckgo.com/?q=${encodeURIComponent(
+              `site:ephy.anses.fr ${cleaned}`
+            )}`;
+            try {
+              await Clipboard.setStringAsync(cleaned);
+            } catch {}
+            Linking.openURL(url).catch(() => {
+              Alert.alert('Erreur', "Impossible d'ouvrir le navigateur.");
+            });
+          },
+        },
+        {
+          text: 'Ouvrir le site e-Phy',
+          onPress: async () => {
+            try {
+              await Clipboard.setStringAsync(cleaned);
+              Alert.alert(
+                'AMM copié',
+                `Le numéro ${cleaned} a été copié. Collez-le dans la barre de recherche d'e-Phy après avoir sélectionné "PPP".`
+              );
+            } catch {}
+            Linking.openURL('https://ephy.anses.fr/').catch(() => {
+              Alert.alert('Erreur', "Impossible d'ouvrir le site e-Phy.");
+            });
+          },
+        },
+        {
+          text: 'Copier le numéro',
+          onPress: async () => {
+            try {
+              await Clipboard.setStringAsync(cleaned);
+              Alert.alert('Copié', `AMM ${cleaned} copié dans le presse-papier.`);
+            } catch {
+              Alert.alert('Erreur', 'Impossible de copier.');
+            }
+          },
+        },
+        { text: 'Annuler', style: 'cancel' },
+      ],
+      { cancelable: true }
+    );
   };
 
   const confirmDelete = (p: Product) => {
